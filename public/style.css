@@ -1,0 +1,101 @@
+body {
+    font-family: 'Abhaya Libre', serif;
+    color: #f06e94;
+    margin: 0;
+    overflow-x: hidden;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.navbar {
+    background-color: #feb7dd;
+    z-index: 1030;
+    position: relative;
+}
+
+.navbar-nav .nav-link {
+    font-family: 'Abhaya Libre', serif;
+    color: #f06e94;
+    font-weight: 600;
+    font-size: 1.2rem;
+}
+
+.navbar-nav .nav-link:hover {
+    text-decoration: underline;
+}
+
+header {
+    background: linear-gradient(135deg, #f06e95, #b86dae, #eaafc8);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding-left: 5%;
+    color: #ffafda;
+    z-index: 1;
+    position: relative;
+}
+
+
+
+.btn-outline-light {
+    color: #ffafdadc;
+    border-color: pink;
+    margin-top: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.btn-outline-light:hover {
+    background-color: #ffafda;
+    color: white;
+}
+
+
+.btn-danger {
+    background: red;
+}
+
+.btn-danger:hover {
+    background: darkred;
+}
+
+
+
+.container {
+    max-width: 800px;
+    margin: 50px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
+
+.news-item {
+    border-bottom: 1px solid #ccc;
+    padding: 10px;
+    text-align: left;
+}
+
+.btn-pink {
+    background-color: #f06e95;
+    color: white;
+    padding: 10px 15px;
+    text-decoration: none;
+    border-radius: 5px;
+    margin: 10px;
+    transition: background 0.3s;
+}
+
+.btn-pink:hover {
+    background-color: #b86dae;
+}
+
+.profile-pic {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #f06e95;
+}
+

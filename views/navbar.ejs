@@ -1,0 +1,6 @@
+<nav class="navbar">
+    <div>
+    <% if (typeof user !== "undefined" && user) { %>
+        <span>Welcome, <%= user.name %>!</span>
+    <% } %>
+</nav>
