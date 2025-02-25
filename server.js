@@ -131,7 +131,7 @@ app.post('/news', upload.single('photo'), authenticateUser, async (req, res) => 
     const { title, description } = req.body;
     if (!title || !description) return res.status(400).send('All fields are required');
 
-    const photo = req.file ? req.file.filename : null; // Проверяем наличие фото
+    const photo = req.file ? req.file.filename : null; 
 
     try {
         await new News({ title, description, photo, author: req.user.id }).save();
@@ -162,18 +162,16 @@ app.post('/news/edit/:id', authenticateUser, async (req, res) => {
 
 app.delete('/news/:id', authenticateUser, async (req, res) => {
     try {
-        console.log("Пользователь:", req.user); // Проверяем, что есть user._id и user.role
+        console.log("Пользователь:", req.user); 
         
         const newsId = req.params.id;
-        const userId = req.user._id; // ID авторизованного пользователя
+        const userId = req.user._id; 
 
         const news = await News.findById(newsId);
         if (!news) {
             return res.status(404).json({ error: 'Новость не найдена' });
         }
 
-        // ✅ Админ может удалить любую новость
-        // ✅ Обычный юзер может удалить только свою
         if (req.user.role !== 'admin' && news.author.toString() !== userId.toString()) {
             return res.status(403).json({ error: 'Нет прав для удаления этой новости' });
         }
