@@ -93,36 +93,30 @@
     <% } %>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            document.querySelectorAll(".delete-news").forEach(button => {
-                button.addEventListener("click", async function () {
-                    const newsId = this.dataset.id;
-                    const card = this.closest(".news-item");
-
-                    if (confirm("Are you sure you want to delete this news?")) {
-                        try {
-                            const response = await fetch(`/news/delete/${newsId}`, {
-                                method: "DELETE",
-                                headers: {
-                                    "Content-Type": "application/json",
-                                    "Authorization": "Bearer " + (localStorage.getItem("token") || "")
-                                }
-                            });
-                            const result = await response.json();
-
-                            if (response.ok) {
-                                alert("News deleted!");
-                                card.remove();
-                            } else {
-                                alert("Error: " + result.message);
-                            }
-                        } catch (error) {
-                            alert("Failed to delete news");
+        document.addEventListener("click", async function (event) {
+            if (event.target.classList.contains("delete-news")) {
+                const newsId = event.target.getAttribute("data-id");
+        
+                if (!confirm("Are you sure you want to delete this news item?")) return;
+        
+                try {
+                    const response = await fetch(`/news/${newsId}`, {
+                        method: "DELETE",
+                        headers: {
+                            "Content-Type": "application/json"
                         }
-                    }
-                });
-            });
-        });
+                    });
+        
+                    const data = await response.json();
+                    if (!response.ok) throw new Error(data.message);
+        
+                    // Удаляем новость из интерфейса без перезагрузки
+                    event.target.closest(".news-item").remove();
+                } catch (error) {
+                    console.error("Ошибка при удалении новости:", error);
+                }
+            }
+        });        
     </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

@@ -1,6 +1,5 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const session = require('express-session');
 const bcrypt = require('bcrypt');
 const dotenv = require('dotenv');
 const ejs = require('ejs');
@@ -8,25 +7,32 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const { authenticateUser, authorizeAdmin } = require('./middleware/auth');
+const authRoutes = require('./routes/authRoutes');
+const userRoutes = require('./routes/userRoutes');
+const newsRoutes = require('./routes/newsRoutes');
+const { errorHandler } = require('./middleware/errorMiddleware');
+const cookieParser = require('cookie-parser');
 
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log("MongoDB Atlas Connected"))
   .catch(err => console.error("MongoDB Atlas Connection Error:", err));
 
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'mysecret',
-    resave: false,
-    saveUninitialized: false
-}));
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/news', newsRoutes);
+
+app.use(errorHandler);
 
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
@@ -56,7 +62,7 @@ const User = require('./models/User');
 const News = require('./models/News');
 
 app.get('/', (req, res) => {
-    res.render('index', { user: req.session.user });
+    res.render('index', { user: null });
 });
 
 app.get('/login', (req, res) => {
@@ -84,7 +90,8 @@ app.post('/login', async (req, res) => {
             return res.render('login', { error: 'Invalid email or password!' });
         }
 
-        req.session.user = user;
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.cookie('token', token, { httpOnly: true, secure: process.env.NODE_ENV === 'production' });
         return res.redirect('/profile');
     } catch (error) {
         console.error("Login error:", error);
@@ -109,30 +116,29 @@ app.post('/register', async (req, res) => {
     res.redirect('/login');
 });
 
-app.get('/news', async (req, res) => {
-    const news = await News.find();
-    res.render('news', { user: req.session.user, news });
+app.get('/news', authenticateUser, async (req, res) => {
+    try {
+        const news = await News.find();
+        res.render('news', { user: req.user || null, news });
+    } catch (error) {
+        console.error("Ошибка при загрузке новостей:", error);
+        res.status(500).json({ message: "Ошибка сервера" });
+    }
 });
+
 
 app.post('/news', upload.single('photo'), authenticateUser, async (req, res) => {
     const { title, description } = req.body;
     if (!title || !description) return res.status(400).send('All fields are required');
-    await new News({ title, description, photo: req.file.filename, author: req.session.user._id }).save();
-    res.redirect('/news');
-});
 
-app.post('/news/delete/:id', authenticateUser, authorizeAdmin, async (req, res) => {
+    const photo = req.file ? req.file.filename : null; // Проверяем наличие фото
+
     try {
-        const newsId = req.params.id;
-        const news = await News.findById(newsId);
-        if (!news) {
-            return res.status(404).json({ message: "News not found" });
-        }
-        await News.findByIdAndDelete(newsId);
+        await new News({ title, description, photo, author: req.user.id }).save();
         res.redirect('/news');
     } catch (error) {
-        console.error("Error deleting news:", error);
-        res.status(500).json({ message: "Error deleting news" });
+        console.error("Ошибка при публикации новости:", error);
+        res.status(500).json({ message: "Ошибка при добавлении новости" });
     }
 });
 
@@ -154,29 +160,54 @@ app.post('/news/edit/:id', authenticateUser, async (req, res) => {
     }
 });
 
-app.delete("/news/delete/:id", authenticateUser, authorizeAdmin, async (req, res) => {
+app.delete('/news/:id', authenticateUser, async (req, res) => {
     try {
+        console.log("Пользователь:", req.user); // Проверяем, что есть user._id и user.role
+        
         const newsId = req.params.id;
-        const deletedNews = await News.findByIdAndDelete(newsId);
+        const userId = req.user._id; // ID авторизованного пользователя
 
-        if (!deletedNews) {
-            return res.status(404).json({ success: false, message: "News not found" });
+        const news = await News.findById(newsId);
+        if (!news) {
+            return res.status(404).json({ error: 'Новость не найдена' });
         }
 
-        res.json({ success: true, message: "News deleted successfully" });
+        // ✅ Админ может удалить любую новость
+        // ✅ Обычный юзер может удалить только свою
+        if (req.user.role !== 'admin' && news.author.toString() !== userId.toString()) {
+            return res.status(403).json({ error: 'Нет прав для удаления этой новости' });
+        }
+
+        await News.findByIdAndDelete(newsId);
+        res.json({ message: 'Новость удалена' });
     } catch (error) {
-        res.status(500).json({ success: false, message: "Error deleting news" });
+        console.error("Ошибка при удалении новости:", error);
+        res.status(500).json({ error: 'Ошибка сервера' });
     }
 });
 
+
+
 app.get('/profile', authenticateUser, async (req, res) => {
-    const user = await User.findById(req.session.user._id);
+    const user = await User.findById(req.user.id);
     const userNews = await News.find({ author: user._id });
     res.render('profile', { user, userNews });
 });
 
+app.post('/profile/edit', authenticateUser, async (req, res) => {
+    const { name, email } = req.body;
+    await User.findByIdAndUpdate(req.user.id, { name, email });
+    res.redirect('/profile');
+});
+
+app.post('/profile/photo', authenticateUser, upload.single('avatar'), async (req, res) => {
+    await User.findByIdAndUpdate(req.user.id, { avatar: req.file.filename });
+    res.redirect('/profile');
+});
+
 app.get('/logout', (req, res) => {
-    req.session.destroy(() => res.redirect('/'));
+    res.clearCookie('token');
+    res.redirect('/');
 });
 
 app.listen(PORT, () => {

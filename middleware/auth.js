@@ -1,29 +1,37 @@
-const bcrypt = require('bcrypt');
-const User = require('../models/User');
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
 
 const authenticateUser = async (req, res, next) => {
-    if (!req.session.user) {
-        return res.redirect("/login"); 
+    let token = req.header("Authorization")?.split(" ")[1] || req.cookies.token;
+
+    if (!token) {
+        req.user = null;
+        return next();
     }
 
     try {
-        const user = await User.findById(req.session.user._id);
-        if (!user) {
-            return res.redirect("/login"); 
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.user = await User.findById(decoded.id).select("-password");
+
+        if (!req.user) {
+            res.clearCookie("token");
+            req.user = null;
         }
 
-        req.user = user;
         next();
     } catch (error) {
-        console.error("Authentication error:", error);
-        res.redirect("/login"); 
+        console.log("❌ Invalid Token:", error.message);
+        res.clearCookie("token");
+        req.user = null;
+        next();
     }
 };
 
 
-const authorizeAdmin = (req, res, next) => {
-    if (!req.user || req.user.role !== "admin") {
-        return res.status(403).json({ message: "Access denied. Admins only!" });
+const authorizeAdmin = async (req, res, next) => {
+    if (!req.user || (req.user.role && req.user.role !== "admin")) {
+        console.log("❌ Unauthorized access attempt by:", req.user ? req.user.email : "Unknown");
+        return res.status(403).json({ message: "Access denied" });
     }
     next();
 };
