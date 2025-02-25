@@ -110,7 +110,6 @@
                     const data = await response.json();
                     if (!response.ok) throw new Error(data.message);
         
-                    // Удаляем новость из интерфейса без перезагрузки
                     event.target.closest(".news-item").remove();
                 } catch (error) {
                     console.error("Ошибка при удалении новости:", error);

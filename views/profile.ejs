@@ -124,8 +124,8 @@
                 const newsId = e.target.dataset.id;
         
                 try {
-                    const response = await fetch(`/news/${newsId}`, { // УБРАЛ `/delete/`
-                        method: "DELETE", // ИСПРАВИЛ НА `DELETE`
+                    const response = await fetch(`/news/${newsId}`, { 
+                        method: "DELETE", 
                         headers: { "Content-Type": "application/json" }
                     });
         
